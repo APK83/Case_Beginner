@@ -8,6 +8,8 @@ using System.Text;
 using System.Net.Mail;
 using System.Threading.Tasks;
 using System.Net;
+using System.Configuration;
+using System.Text.RegularExpressions;
 
 namespace NetChecker
 {
@@ -16,56 +18,8 @@ namespace NetChecker
         delegate void method();
         static void Main(string[] args)
         {
-            //XmlSerializer serializer = new XmlSerializer(typeof(xmlrw));
-
-            //var xmlrw_val = new xmlrw()
-            //{
-            //    UrlList = new List<string>()
-            //};
-
-            //Console.WriteLine("Введите URL:");
-            //xmlrw_val.UrlList.Add(Console.ReadLine());
-            //xmlrw_val.UrlList.Add("https://git-scm.com");
-            //xmlrw_val.UrlList.Add("https://keyrand.forum2x2.ru/");
-            //xmlrw_val.UrlList.Add("https://www.cyberforum.ru");
-
-
-            //using (StringWriter textWriter = new StringWriter())
-            //{
-            //    serializer.Serialize(textWriter, xmlrw_val);
-            //    Console.WriteLine(textWriter.ToString());
-
-            //}
-            ////Сохранение данных в файл xml
-            //FileStream fs = new FileStream("storage.xml", FileMode.Create);
-            //TextWriter writer = new StreamWriter(fs, new UTF8Encoding());
-            //serializer.Serialize(writer, xmlrw_val);
-            //writer.Close();
-
-            //SendEmailAsync().GetAwaiter();
-            //Console.Read();
-
-            //XmlTextWriter textWritter = new XmlTextWriter("storage.xml", null);
-            //textWritter.Close();
-            //textWritter.Dispose();
-            //XmlDocument xml_document = new XmlDocument();
-            //XmlDeclaration xml_declaration = xml_document.CreateXmlDeclaration("1.0", "UTF-8", String.Empty);
-            //XmlElement UrlList = xml_document.CreateElement("UrlList");
-            //xml_document.AppendChild(UrlList);
-            //xml_document.InsertBefore(xml_declaration, UrlList);
-            //xml_document.Save("storage.xml");
-
-
-            //var adress = new Urls()._adress;
-            //Console.WriteLine("Введите URL:");
-            //string adr_1 = Console.ReadLine();
-            //adress.Add(new Urls() { Adress = adr_1});
-            //adress.Add(new Urls() { Adress = "https://vk.com"});
-            //foreach (var st in adress)
-            //    Console.WriteLine(st.ToString());
-
-            string[] items = { "Проверка доступности БД", "Изменение строки подключения к БД", "Проверка на доступность списока URL", "Добваление нового URL в список", "Изменить E-MAIL", "Выход" };
-            method[] methods = new method[] { CheckToDB, EditConnStr, ChekToURL, AddToList, EditMail, Exit };
+            string[] items = { "Проверка доступности БД", "Изменение строки подключения к БД", "Проверка на доступность списока URL", "Добваление нового URL в список", "Изменение E-MAIL", "Отправка отчета", "Выход" };
+            method[] methods = new method[] { CheckToDB, EditConnStr, ChekToURL, AddToList, EditMail, Report, Exit };
             ConsoleMenu menu = new ConsoleMenu(items);
             int menuResult;
             do
@@ -102,94 +56,149 @@ namespace NetChecker
                 "Password=" + password + "; " + "commandTimeout=" + commandtimeout + ";";
             PostgresCheck.Connect(new_connectionstring);
         }
-        static void ChekToURL()
+        static void ChekToURL()//Проверка адресов интернет-страниц на доступность (функция работает исправно. Не реализовано сохранение в файл отчета. Не реализована отправка по электронной почте).
         {
             Console.WriteLine("\nПроверка списка URL:");
-            string[] Links = new string[5] { "https://vk.com", "https://git-scm.com", "https://keyrand.forum2x2.ru/", "https://www.cyberforum.ru", "https://www.cyberf3873orum.ru" };
-            for (int i = 0; i < Links.Length; i++)
+            //Вычитываем список строк из файла конфигурации (xml).
+            XmlSerializer serializer = new XmlSerializer(typeof(xmlrw));
+            xmlrw xmlrw_val = null;
+
+            //using (FileStream file = new FileStream("storage.xml", FileMode.Open))
+
+            //    xmlrw_val = (xmlrw)serializer.Deserialize(file);
+            using (StreamReader reader = new StreamReader("storage.xml"))
             {
-                if (SiteCheck.Test(Links[i]) == true)
+                xmlrw_val = (xmlrw)serializer.Deserialize(reader);
+            }
+            //Преобразуем объекты в список строк и производим проверку доступности сайтов.
+            foreach (var link in xmlrw_val.UrlList)
+            {
+                if (SiteCheck.Test(link) == true)
                 {
-                    Console.WriteLine($"Conneting to URL {Links[i]}: Success");
+                    Console.WriteLine($"Conneting to URL {link}: Success");
                 }
                 else
                 {
-                    Console.WriteLine($"Conneting to URL {Links[i]}: Fail");
+                    Console.WriteLine($"Conneting to URL {link}: Fail");
                 }
             }
+            
         }
-        static void AddToList()
+        static void AddToList()//Добавление новых адресов сайтов в список провеки (функция работает исправно, не реализована проверка правильности ввода).
         {
             XmlSerializer serializer = new XmlSerializer(typeof(xmlrw));
-            var xmlrw_val = new xmlrw()
-            {
-                UrlList = new List<string>()
-            };
+            xmlrw xmlrw_val = null;
+            //Считываем имеющиеся в конфигурационном файле строки (List)
+            using (FileStream file = new FileStream("storage.xml", FileMode.Open))
 
-            Console.WriteLine("Хотите добавить в список новый URL? (Y/N)");
-            string yn = Console.ReadLine();
-            if (yn == "Y")
+            xmlrw_val = (xmlrw)serializer.Deserialize(file);
+            //Добавляем новые строки в конфигурационный файл.
+            string yn = null;
+            while (yn != "N")
             {
+                Console.WriteLine("Хотите добавить в список новый URL? YES/NO (Y/N)");
+                yn = Console.ReadLine();
+                if (yn == "Y")
+                { 
                 Console.WriteLine("Введите новый URL:");
                 xmlrw_val.UrlList.Add(Console.ReadLine());
                 using (StringWriter textWriter = new StringWriter())
                 {
                     serializer.Serialize(textWriter, xmlrw_val);
-                    
-                }
-                //Сохранение данных в файл xml
-                FileStream file = new FileStream("storage.xml", FileMode.Create);
-                TextWriter xwriter = new StreamWriter(file, new UTF8Encoding());
-                serializer.Serialize(xwriter, xmlrw_val);
-                xwriter.Close();
-                Console.WriteLine("URL добавлен в список проверки.");
-            }
-            else
-               if (yn == "N")
-            {
-                
-            }
-                
-            
 
+                }
+                //Сохранение данных в файл xml с новыми строками.
+                using (FileStream file = new FileStream("storage.xml", FileMode.Create))
+                using (TextWriter xwriter = new StreamWriter(file, new UTF8Encoding()))
+                {
+                    serializer.Serialize(xwriter, xmlrw_val);
+                    xwriter.Close();
+                }
+                Console.WriteLine("URL добавлен в список проверки.");
+                }
+                else
+                    if (yn == "N")
+                {
+                    Console.WriteLine("Добавление нового URL в список отменено.");
+                }
+            }
+
+        }
+        static void EditMail()//Добавление адреса электронной почты в файл конфигурации. Не реализована замена имеющегося адреса. Не реализована проверка ввода.
+        {
+            XmlSerializer serializer = new XmlSerializer(typeof(xmlrw));
+            xmlrw xmlrw_val = null;
+            //Считываем имеющиеся в конфигурационном файле строки (List)
+            using (FileStream file = new FileStream("storage.xml", FileMode.Open))
+
+                xmlrw_val = (xmlrw)serializer.Deserialize(file);
+            Console.WriteLine("Введите адрес электронной почты для отправки отчета:");
+            xmlrw_val.Email.Add(Console.ReadLine());
             using (StringWriter textWriter = new StringWriter())
             {
                 serializer.Serialize(textWriter, xmlrw_val);
-                Console.WriteLine(textWriter.ToString());
 
             }
-            //Сохранение данных в файл xml
-            FileStream fs = new FileStream("storage.xml", FileMode.Create);
-            TextWriter writer = new StreamWriter(fs, new UTF8Encoding());
-            serializer.Serialize(writer, xmlrw_val);
-            writer.Close();
+            //Сохранение данных в файл xml с новыми строками.
+            using (FileStream file = new FileStream("storage.xml", FileMode.Create))
+            using (TextWriter xwriter = new StreamWriter(file, new UTF8Encoding()))
+            {
+                serializer.Serialize(xwriter, xmlrw_val);
+                xwriter.Close();
+            }
+            Console.WriteLine("Новый электронный адрес получателя отчета добавлен.");
+
 
         }
-        static void EditMail()
+        static void Report()//Отправка отчета в общем работает корректно. Требуются следующие корректировки: 1. Нужно сдаелать подтягивание адреса отправки не из конфига, а из xml 2.  Изменить вложение, должен отправлять файл с результатами проверки, а не исходный xml.
         {
-            Console.WriteLine("Введите адрес электронной почты для отправки отчета:");
-            MailAddress new_to = new MailAddress(Console.ReadLine());
-            
+            //Console.WriteLine("Enter To Address:");
+            string to = ConfigurationManager.AppSettings["ToEmail"];
+
+            //Console.WriteLine("Enter Subject:");
+            //string subject = Console.ReadLine().Trim();
+            var dat = DateTime.Now.ToString("dd/ MM/yyyy HH:mm");
+            string subject = "Отчет NetChecker" + dat;
+
+            //Console.WriteLine("Enter Body:");
+            //string body = Console.ReadLine().Trim();
+            string body = "Данный отчет отправлен программой NetChecke и содержит XML-файл с результатами проверки интернет-ресурсов.n/Для просомтра файла отчета откройте кго в любом браузере.n/Благодарим за использование нашего приложенгия.n/С уважением, командв NetChecker.";
+
+            using (MailMessage mm = new MailMessage(ConfigurationManager.AppSettings["FromEmail"], to))
+            {
+                mm.Subject = subject;
+                mm.Body = body;
+                mm.IsBodyHtml = false;
+                //Прикрепляем файл во вложении.
+                var attachment = new Attachment("storage.xml");
+                mm.Attachments.Add(attachment);
+                SmtpClient smtp = new SmtpClient();
+                smtp.Host = ConfigurationManager.AppSettings["Host"];
+                smtp.EnableSsl = true;
+                NetworkCredential NetworkCred = new NetworkCredential(ConfigurationManager.AppSettings["Username"], ConfigurationManager.AppSettings["Password"]);
+                smtp.UseDefaultCredentials = false;
+                smtp.Credentials = NetworkCred;
+                smtp.Port = int.Parse(ConfigurationManager.AppSettings["Port"]);
+                Console.WriteLine("Отправка отчета......");
+                smtp.Send(mm);
+                Console.WriteLine($"Отчет отправлен на электронную почту {to}.");
+                System.Threading.Thread.Sleep(3000);
+                
+            }
+
         }
-        static void Exit()
+        static void Exit()//Завершение работы приложеня. 1. Нужно сделать красиво оформленный логотип на прощальном экране.
         {
-            Console.WriteLine("Приложение заканчивает работу!");
-            Environment.Exit(0);
+            string centerText = "*** NetChecker ***";
+            Console.Clear();
+            int centerX = (Console.WindowWidth / 2) - (centerText.Length / 2);
+            int centerY = (Console.WindowHeight / 2) - 1;
+            Console.SetCursorPosition(centerX, centerY);
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.Write(centerText);
+            Environment.Exit(3);
         }
-        private static async Task SendEmailAsync()
-        {
-            MailAddress from = new MailAddress("ya.te2016@ya.ru", "NetChecker");
-            MailAddress to = new MailAddress("technoservice@nxt.ru");
-            MailMessage m = new MailMessage(from, to);
-            m.Attachments.Add(new Attachment("E://Учеба_ВШЭ2021/NetCh/NetChecker/NetChecker/bin/Debug/net5.0/storage.xml"));
-            m.Subject = "Отчет от проверке URL/POSTGRES";
-            m.Body = "Письмо-тест реботы программы NetChecker";
-            SmtpClient smtp = new SmtpClient("smtp.yandex.ru", 465);
-            smtp.Credentials = new NetworkCredential("ya.te2016@ya.ru", "Acsi300883101289!");
-            smtp.EnableSsl = true;
-            await smtp.SendMailAsync(m);
-            Console.WriteLine("Письмо отправлено");
-        }
+       
     }
 
 }

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xmlrw xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <UrlList>
+	  <string>https://vk.com</string>
+	  <string>https://git-scm.com</string>
+	  <string>https://keyrand.forum2x2.ru/</string>
+	  <string>https://keyrand.forum2x2.ru</string>
+	  <string>https://www.cyberforum.ru</string>
+	  <string>https://www.cyberf3873orum.ru</string>
+  </UrlList>
+	<PostgresList>
+		<string>Server=localhost; Port=5432; Database=Test_base_001; UserId=postgres; Password=1234; commandTimeout=120;</string>
+	</PostgresList>
+	<Email>
+		<string>technoservice@nxt.ru</string>
+	</Email>
+</xmlrw>
