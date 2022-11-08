@@ -6,20 +6,21 @@ namespace NetChecker
 {
     class PostgresCheck
     {
-        public static NpgsqlConnection Connect(string connectionString)
+        public static bool Connect(string connectionString)
         {
             NpgsqlConnection conn = new NpgsqlConnection(connectionString);
             try
             {
                 conn.Open();
-                Console.WriteLine($"Строка подключения: {connectionString} \nСтатус: доступен");
+                Console.WriteLine($"Строка подключения: {connectionString} \nСтатус: БД доступна.");
+                return true; 
 
             }
             catch
             {
-                Console.WriteLine($"База данных Postgres: ({connectionString}), \nСтатус: недоступен.");
+                Console.WriteLine($"База данных Postgres: ({connectionString}), \nСтатус: БД недоступна.");
             }
-            return conn;
+            return false;
         }
     }
 }
