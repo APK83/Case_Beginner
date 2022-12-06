@@ -202,7 +202,7 @@ namespace NetChecker
             }
 
         }
-        static void EditMail()//Добавление адреса электронной почты в файл конфигурации. Не реализована замена имеющегося адреса. Не реализована проверка ввода.
+        static void EditMail()//Добавление адреса электронной почты в файл конфигурации. Не реализована проверка ввода (метод создан, требуется применить в коде).
         {
             XmlSerializer serializer = new XmlSerializer(typeof(xmlrw));
             xmlrw xmlrw_val = null;
@@ -230,7 +230,7 @@ namespace NetChecker
 
 
         }
-        static void Report()//Отправка отчета в общем работает корректно. Требуются следующие корректировки: 1. Нужно сдаелать подтягивание адреса отправки не из конфига, а из xml 2.  Изменить вложение, должен отправлять файл с результатами проверки, а не исходный xml.
+        static void Report()//Отправка отчета работает корректно.
         {
             //Console.WriteLine("Enter To Address:");
             //string to = ConfigurationManager.AppSettings["ToEmail"];
@@ -271,7 +271,7 @@ namespace NetChecker
             }
             
         }
-        static void Exit()//Завершение работы приложеня. 1. Нужно сделать красиво оформленный логотип на прощальном экране.
+        static void Exit()//Завершение работы приложеня. 1. Нужно сделать красиво оформленный логотип на прощальном экране (сделать по центру).
         {
             string centerText = "\n      ::::    ::: :::::::::: ::::::::::: ::::::::  :::    ::: :::::::::: ::::::::  :::    ::: :::::::::: ::::::::: \n     :+:+:   :+: :+:            :+:    :+:    :+: :+:    :+: :+:       :+:    :+: :+:   :+:  :+:        :+:    :+: \n    :+:+:+  +:+ +:+            +:+    +:+        +:+    +:+ +:+       +:+        +:+  +:+   +:+        +:+    +:+  \n   +#+ +:+ +#+ +#++:++#       +#+    +#+        +#++:++#++ +#++:++#  +#+        +#++:++    +#++:++#   +#++:++#:    \n  +#+  +#+#+# +#+            +#+    +#+        +#+    +#+ +#+       +#+        +#+  +#+   +#+        +#+    +#+    \n #+#   #+#+# #+#            #+#    #+#    #+# #+#    #+# #+#       #+#    #+# #+#   #+#  #+#        #+#    #+#    \n###    #### ##########     ###     ########  ###    ### ########## ########  ###    ### ########## ###    ###      ";
             Console.Clear();
@@ -281,6 +281,13 @@ namespace NetChecker
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.Write(centerText);
             Environment.Exit(3);
+        }
+
+        public static bool isValid(string email)//Проверка правильности вводе E-MAIL.
+        {
+            string pattern = "[.\\-_a-z0-9]+@([a-z0-9][\\-a-z0-9]+\\.)+[a-z]{2,6}";
+            Match isMatch = Regex.Match(email, pattern, RegexOptions.IgnoreCase);
+            return isMatch.Success;
         }
 
     }
