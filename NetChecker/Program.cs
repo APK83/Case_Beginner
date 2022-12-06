@@ -19,8 +19,8 @@ namespace NetChecker
         delegate void method();
         static void Main(string[] args)//Основное меню: реализовано перемещение при помощи стрелок на клавиатуре. Возможность добавлять необходимое количество пунктов меню.
         {
-            string[] items = { "\nПроверка доступности БД Postgres", "\nИзменение строки подключения к БД", "\nПроверка на доступность списока URL", "\nДобваление нового URL в список проверки", "\nИзменение адреса e-mail для отправки отчета", "\nОтправка отчета", "\nВыход" };
-            method[] methods = new method[] { CheckToDB, EditConnStr, ChekToURL, AddToList, EditMail, Report, Exit };
+            string[] items = { "\nПроверка доступности БД Postgres", "\nИзменение строки подключения к БД", "\nПроверка на доступность списока URL", "\nДобваление нового URL в список проверки", "\nИзменение адреса e-mail для отправки отчета", "\nОтправка отчета", "\nРезультат последней проверки", "\nВыход" };
+            method[] methods = new method[] { CheckToDB, EditConnStr, ChekToURL, AddToList, EditMail, Report, reportDisplay, Exit };
             ConsoleMenu menu = new ConsoleMenu(items);
             int menuResult;
             do
@@ -232,8 +232,7 @@ namespace NetChecker
         }
         static void Report()//Отправка отчета работает корректно.
         {
-            //Console.WriteLine("Enter To Address:");
-            //string to = ConfigurationManager.AppSettings["ToEmail"];
+            
             XmlSerializer serializer = new XmlSerializer(typeof(xmlrw));
             xmlrw xmlrw_val = null;
             using (StreamReader reader = new StreamReader("storage.xml"))
@@ -288,6 +287,15 @@ namespace NetChecker
             string pattern = "[.\\-_a-z0-9]+@([a-z0-9][\\-a-z0-9]+\\.)+[a-z]{2,6}";
             Match isMatch = Regex.Match(email, pattern, RegexOptions.IgnoreCase);
             return isMatch.Success;
+        }
+
+        static void reportDisplay()//Требуется удалить пробелы и привести отображение в читабельный вид.
+        {
+            XmlReader reader = XmlReader.Create("report.xml");
+            while (reader.Read())
+            {
+                Console.WriteLine(reader.Value);
+            }
         }
 
     }
