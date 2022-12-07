@@ -204,29 +204,57 @@ namespace NetChecker
         }
         static void EditMail()//Добавление адреса электронной почты в файл конфигурации. Не реализована проверка ввода (метод создан, требуется применить в коде).
         {
-            XmlSerializer serializer = new XmlSerializer(typeof(xmlrw));
-            xmlrw xmlrw_val = null;
-            //Считываем имеющиеся в конфигурационном файле строки (List)
-            using (FileStream file = new FileStream("storage.xml", FileMode.Open))
+            Console.WriteLine("\nВведите адрес электронной почты для отправки отчета:\n");
+            string new_mail = Console.ReadLine();
+            
+                
+                if (isValid(new_mail) == true)
+                {
+                    XmlSerializer serializer = new XmlSerializer(typeof(xmlrw));
+                    xmlrw xmlrw_val = null;
+                    //Считываем имеющиеся в конфигурационном файле строки (List)
+                    using (FileStream file = new FileStream("storage.xml", FileMode.Open))
 
-                xmlrw_val = (xmlrw)serializer.Deserialize(file);
-            xmlrw_val.Email.Clear();
+                        xmlrw_val = (xmlrw)serializer.Deserialize(file);
+                    xmlrw_val.Email.Clear();
 
-            Console.WriteLine("Введите адрес электронной почты для отправки отчета:");
-            xmlrw_val.Email.Add(Console.ReadLine());
-            using (StringWriter textWriter = new StringWriter())
-            {
-                serializer.Serialize(textWriter, xmlrw_val);
+                    xmlrw_val.Email.Add(new_mail);
+                    using (StringWriter textWriter = new StringWriter())
+                    {
+                        serializer.Serialize(textWriter, xmlrw_val);
 
-            }
-            //Сохранение данных в файл xml с новыми строками.
-            using (FileStream file = new FileStream("storage.xml", FileMode.Create))
-            using (TextWriter xwriter = new StreamWriter(file, new UTF8Encoding()))
-            {
-                serializer.Serialize(xwriter, xmlrw_val);
-                xwriter.Close();
-            }
-            Console.WriteLine("\nНовый электронный адрес получателя отчета сохранен.");
+                    }
+                    //Сохранение данных в файл xml с новыми строками.
+                    using (FileStream file = new FileStream("storage.xml", FileMode.Create))
+                    using (TextWriter xwriter = new StreamWriter(file, new UTF8Encoding()))
+                    {
+                        serializer.Serialize(xwriter, xmlrw_val);
+                        xwriter.Close();
+                    }
+                    Console.WriteLine("\nНовый электронный адрес получателя отчета сохранен.");
+                }
+                else
+                {
+                    Console.WriteLine("\nАдрес электронной почты введен с ошибкой.\n");
+                    Console.WriteLine("\nЕсли хотите попроьовать снова нажмите Y, если хотите вернуться в основное меню нажмите N.\n");
+                    var yn = Console.ReadLine();
+                    if (yn == "Y" || yn == "y")
+                {
+                    EditMail();
+                }
+                    if (yn == "N" || yn == "n")
+                {
+                    Console.WriteLine("ВНИМАНИЕ!!! Адрес электронной почты не изменен!");
+                }
+                    else
+                {
+                    Console.WriteLine("Вы ввели неверное значение.");
+                    Console.WriteLine("\nЕсли хотите попроьовать снова нажмите Y, если хотите вернуться в основное меню нажмите N.\n");
+                }
+
+
+                }
+            
 
 
         }
@@ -291,11 +319,25 @@ namespace NetChecker
 
         static void reportDisplay()//Требуется удалить пробелы и привести отображение в читабельный вид.
         {
-            XmlReader reader = XmlReader.Create("report.xml");
-            while (reader.Read())
+            XmlSerializer serializer_rep = new XmlSerializer(typeof(Reprw));
+            Reprw rep_rw = null;
+            using (StreamReader reader = new StreamReader("report.xml"))
             {
-                Console.WriteLine(reader.Value);
+                rep_rw = (Reprw)serializer_rep.Deserialize(reader);
             }
+
+            //Преобразуем объекты в список строк и производим проверку доступности сайтов.
+            Console.WriteLine("\nРЕЗУЛЬТАТЫ ПРОВЕРКИ URL:");
+            foreach (var link in rep_rw.UrlList)
+            {
+                Console.WriteLine($"\nРесурс:\n" + link.ResName + "\nСтатус:\n" + link.Status + "\nВремя проверки:\n" + link.Dat);
+            }
+            Console.WriteLine("\nРЕЗУЛЬТАТЫ ПРОВЕРКИ POSTGRES:");
+            foreach (var pg in rep_rw.PostgresList)
+            {
+                Console.WriteLine($"\nСтрока подключения Postgres:\n" + pg.ResName + "\nСтатус:\n" + pg.Status + "\nВремя проверки:\n" + pg.Dat);
+            }
+
         }
 
     }
