@@ -17,20 +17,28 @@ namespace NetChecker
     class Program
     {
         delegate void method();
-        static void Main(string[] args)//Основное меню: реализовано перемещение при помощи стрелок на клавиатуре. Возможность добавлять необходимое количество пунктов меню.
+        static void Main(string[] args)//Основное меню: реализовано перемещение при помощи стрелок на клавиатуре. Возможность добавлять необходимое количество пунктов меню. Реализована возможность запуска с параметром.
         {
-            string[] items = { "\nПроверка доступности БД Postgres", "\nИзменение строки подключения к БД", "\nПроверка на доступность списока URL", "\nДобваление нового URL в список проверки", "\nИзменение адреса e-mail для отправки отчета", "\nОтправка отчета", "\nРезультат последней проверки", "\nВыход" };
-            method[] methods = new method[] { CheckToDB, EditConnStr, ChekToURL, AddToList, EditMail, Report, reportDisplay, Exit };
-            ConsoleMenu menu = new ConsoleMenu(items);
-            int menuResult;
-            do
+            if(args.Length == 0)
             {
-                menuResult = menu.PrintMenu();
-                methods[menuResult]();
-                Console.WriteLine("\nДля возврата в основное меню, нажмите любую клавишу.");
-                Console.ReadKey();
+                string[] items = { "\nПроверка доступности БД PostgreSQL", "\nИзменение строки подключения к БД", "\nПроверка на доступность списка URL", "\nДобваление нового URL в список проверки", "\nИзменение адреса e-mail для отправки отчета", "\nОтправка отчета", "\nРезультат последней проверки", "\nВыход" };
+                method[] methods = new method[] { CheckToDB, EditConnStr, ChekToURL, AddToList, EditMail, Report, reportDisplay, Exit };
+                ConsoleMenu menu = new ConsoleMenu(items);
+                int menuResult;
+                do
+                {
+                    menuResult = menu.PrintMenu();
+                    methods[menuResult]();
+                    Console.WriteLine("\nДля возврата в основное меню, нажмите любую клавишу.");
+                    Console.ReadKey();
+                }
+                while (menuResult != items.Length - 1);
             }
-            while (menuResult != items.Length - 1);
+            else
+            {
+                reportDisplay();
+            }
+
         }
         static void CheckToDB()
         {
@@ -68,7 +76,7 @@ namespace NetChecker
 
 
         }
-        static void EditConnStr()//Требуется замена строки подключения в файле storage.xml на созданную.
+        static void EditConnStr()//Функция работает исправно (предыдущая строка очищается, после чего прописывается новая).
         {
 
             XmlSerializer serializer = new XmlSerializer(typeof(xmlrw));
@@ -156,7 +164,7 @@ namespace NetChecker
             }
 
         }
-        static void AddToList()//Добавление новых адресов сайтов в список провеки (функция работает исправно, не реализована проверка правильности ввода. Поправить ветвление).
+        static void AddToList()//Добавление новых адресов сайтов в список провеки (функция работает исправно, реализована проверка правильности ввода через регулярное выражение - работает не совсем корректно. Не ыводит уведобления о сохранении в список. ).
         {
             XmlSerializer serializer = new XmlSerializer(typeof(xmlrw));
             xmlrw xmlrw_val = null;
@@ -172,37 +180,50 @@ namespace NetChecker
                 yn = Console.ReadLine();
                 if (yn == "Y" || yn == "y")
                 {
-                    Console.WriteLine("Введите новый URL:");
-                    xmlrw_val.UrlList.Add(Console.ReadLine());
-                    using (StringWriter textWriter = new StringWriter())
+                    Console.WriteLine("Введите новый URL:\n");
+                    string new_url = Console.ReadLine();
+                    if (isValidUrl(new_url)==true)
                     {
-                        serializer.Serialize(textWriter, xmlrw_val);
+                        xmlrw_val.UrlList.Add(new_url);
+                        using (StringWriter textWriter = new StringWriter())
+                        {
+                            serializer.Serialize(textWriter, xmlrw_val);
+                            textWriter.Close();
 
+                        }
+                        //Сохранение данных в файл xml с новыми строками.
+                        using (FileStream file = new FileStream("storage.xml", FileMode.Create))
+                        using (TextWriter xwriter = new StreamWriter(file, new UTF8Encoding()))
+                        {
+                            serializer.Serialize(xwriter, xmlrw_val);
+                            xwriter.Close();
+                        }
+                        Console.WriteLine("\nURL добавлен в список проверки.\n");
                     }
-                    //Сохранение данных в файл xml с новыми строками.
-                    using (FileStream file = new FileStream("storage.xml", FileMode.Create))
-                    using (TextWriter xwriter = new StreamWriter(file, new UTF8Encoding()))
+                    else
                     {
-                        serializer.Serialize(xwriter, xmlrw_val);
-                        xwriter.Close();
+                        Console.WriteLine("\nТакой URL не существует. Введите правильный URL.\n");
+                        
                     }
-                    Console.WriteLine("URL добавлен в список проверки.");
+                    
                 }
+                
                 else
                     if (yn == "N" || yn == "n")
                 {
-                    Console.WriteLine("Добавление нового URL в список отменено.");
+                    Console.WriteLine("\nДобавление нового URL в список отменено.\n");
                     break;
                 }
                 else
                 {
-                    Console.WriteLine("Ошибка ввода! Введите Y если желаете добваить в список проверки новый адрес или N если не желаете продолжать добавление адресов в список.\n");
+                    Console.WriteLine("Ошибка ввода! Введите Y если желаете добаваить в список проверки новый адрес или N если не желаете продолжать добавление адресов в список.\n");
 
                 }
+
             }
 
         }
-        static void EditMail()//Добавление адреса электронной почты в файл конфигурации. Не реализована проверка ввода (метод создан, требуется применить в коде).
+        static void EditMail()//Добавление адреса электронной почты в файл конфигурации. Реализована проверка правильности вводе через регулярное выражение.
         {
             Console.WriteLine("\nВведите адрес электронной почты для отправки отчета:\n");
             string new_mail = Console.ReadLine();
@@ -266,6 +287,7 @@ namespace NetChecker
             using (StreamReader reader = new StreamReader("storage.xml"))
             {
                 xmlrw_val = (xmlrw)serializer.Deserialize(reader);
+                reader.Close();
             }
             foreach (string to in xmlrw_val.Email)
             {
@@ -316,27 +338,35 @@ namespace NetChecker
             Match isMatch = Regex.Match(email, pattern, RegexOptions.IgnoreCase);
             return isMatch.Success;
         }
+        public static bool isValidUrl(string url)//Проверка правильности вводе URL.
+        {
+            string pattern = "^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?";
+            Match isMatch = Regex.Match(url, pattern, RegexOptions.IgnoreCase);
+            return isMatch.Success;
+        }
 
-        static void reportDisplay()//Требуется удалить пробелы и привести отображение в читабельный вид.
+        static void reportDisplay()//Требуется реализовать перемещение по списку при помощи стрелок (если список будет занимать больше видимой области экрана).
         {
             XmlSerializer serializer_rep = new XmlSerializer(typeof(Reprw));
             Reprw rep_rw = null;
             using (StreamReader reader = new StreamReader("report.xml"))
             {
                 rep_rw = (Reprw)serializer_rep.Deserialize(reader);
+                reader.Close();
             }
 
             //Преобразуем объекты в список строк и производим проверку доступности сайтов.
             Console.WriteLine("\nРЕЗУЛЬТАТЫ ПРОВЕРКИ URL:");
             foreach (var link in rep_rw.UrlList)
             {
-                Console.WriteLine($"\nРесурс:\n" + link.ResName + "\nСтатус:\n" + link.Status + "\nВремя проверки:\n" + link.Dat);
+                Console.WriteLine($"\nРесурс: " + link.ResName + "\nСтатус: " + link.Status + "\nВремя проверки: " + link.Dat);
             }
-            Console.WriteLine("\nРЕЗУЛЬТАТЫ ПРОВЕРКИ POSTGRES:");
+            Console.WriteLine("\nРЕЗУЛЬТАТЫ ПРОВЕРКИ PostgreSQL:");
             foreach (var pg in rep_rw.PostgresList)
             {
-                Console.WriteLine($"\nСтрока подключения Postgres:\n" + pg.ResName + "\nСтатус:\n" + pg.Status + "\nВремя проверки:\n" + pg.Dat);
+                Console.WriteLine($"\nСтрока подключения Postgres: " + pg.ResName + "\nСтатус: " + pg.Status + "\nВремя проверки: " + pg.Dat);
             }
+            
 
         }
 
