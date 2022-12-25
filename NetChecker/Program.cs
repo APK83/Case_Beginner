@@ -11,48 +11,100 @@ using System.Net;
 using System.Configuration;
 using System.Text.RegularExpressions;
 using System.Security.Policy;
+using NLog;
+using NLog.Config;
+using NLog.Targets;
+using NLog.Conditions;
+using static System.Net.WebRequestMethods;
 
 namespace NetChecker
 {
     class Program
     {
         delegate void method();
+        public static NLog.Logger Logger = NLog.LogManager.GetLogger("NetChecker");
         static void Main(string[] args)//Основное меню: реализовано перемещение при помощи стрелок на клавиатуре. Возможность добавлять необходимое количество пунктов меню. Реализована возможность запуска с параметром.
         {
-            if(args.Length == 0)
+            #region NLog Initializator
+
+            var config = new NLog.Config.LoggingConfiguration();
+            LogManager.Configuration = new LoggingConfiguration();
+            const string LayoutFile = @"[${date:format=yyyy-MM-dd HH\:mm\:ss}] [${logger}/${uppercase: ${level}}] [THREAD: ${threadid}] >> ${message} ${exception: format=ToString}";
+            var logfile = new FileTarget();
+            if (!Directory.Exists("Logs"))
+                Directory.CreateDirectory("Logs");
+            logfile.CreateDirs = true;
+            logfile.FileName = $"Logs{Path.DirectorySeparatorChar}log {DateTime.Now}.log";
+            logfile.AutoFlush = true;
+            logfile.LineEnding = LineEndingMode.CRLF;
+            logfile.Layout = LayoutFile;
+            logfile.FileNameKind = FilePathKind.Absolute;
+            logfile.ConcurrentWrites = false;
+            logfile.KeepFileOpen = true;
+            //Настраиваем уровни логирования
+            config.AddRule(LogLevel.Info, LogLevel.Fatal, logfile);
+            //Применяем конфишурация логирования
+            NLog.LogManager.Configuration = config;
+
+            #endregion NLog Initializator
+
+            //Logger.Trace("1");
+            //Logger.Debug("2");
+            //Logger.Info("3");
+            //Logger.Warn("4");
+            //Logger.Error("5");
+            //Logger.Fatal("6");
+            Logger.Info("Запуск приложения");
+
+            try
             {
-                string[] items = { "\nПроверка доступности БД PostgreSQL", "\nИзменение строки подключения к БД", "\nПроверка на доступность списка URL", "\nДобваление нового URL в список проверки", "\nИзменение адреса e-mail для отправки отчета", "\nОтправка отчета", "\nРезультат последней проверки", "\nВыход" };
-                method[] methods = new method[] { CheckToDB, EditConnStr, ChekToURL, AddToList, EditMail, Report, reportDisplay, Exit };
-                ConsoleMenu menu = new ConsoleMenu(items);
-                int menuResult;
-                do
+
+                if (args.Length == 0)
                 {
-                    menuResult = menu.PrintMenu();
-                    methods[menuResult]();
-                    Console.WriteLine("\nДля возврата в основное меню, нажмите любую клавишу.");
-                    Console.ReadKey();
+                    string[] items = { "\nПроверка доступности БД PostgreSQL", "\nИзменение строки подключения к БД", "\nПроверка на доступность списка URL", "\nДобваление нового URL в список проверки", "\nИзменение адреса e-mail для отправки отчета", "\nОтправка отчета", "\nРезультат последней проверки", "\nВыход" };
+                    method[] methods = new method[] { CheckToDB, EditConnStr, ChekToURL, AddToList, EditMail, Report, reportDisplay, Exit };
+                    ConsoleMenu menu = new ConsoleMenu(items);
+                    int menuResult;
+                    do
+                    {
+                        Logger.Info("Инициализация основного меню.");
+                        menuResult = menu.PrintMenu();
+                        methods[menuResult]();
+                        Console.WriteLine("\nДля возврата в основное меню, нажмите любую клавишу.");
+                        Console.ReadKey();
+                        Logger.Info("Возврат в основное меню.");
+                    }
+                    while (menuResult != items.Length - 1);
                 }
-                while (menuResult != items.Length - 1);
+                else
+                {
+                    reportDisplay();
+                    Logger.Info("Запуск программы с параметром");
+                }
             }
-            else
+            catch(Exception)
             {
-                reportDisplay();
+                Logger.Fatal("Критическая ошибка: не удалось инициализировать запуск стартового меню.");
             }
 
         }
         static void CheckToDB()
         {
+            Logger.Info("Инициализация проверки подключения к БД PostreSQL.");
+            try { 
             XmlSerializer serializer = new XmlSerializer(typeof(xmlrw));
             xmlrw xmlrw_val = null;
             using (StreamReader reader = new StreamReader("storage.xml"))
             {
                 xmlrw_val = (xmlrw)serializer.Deserialize(reader);
+                Logger.Info("Открытия файла storage.xml.");
             }
             XmlSerializer serializer_rep = new XmlSerializer(typeof(Reprw));
             Reprw rep_rw = null;
             using (StreamReader reader = new StreamReader("report.xml"))
             {
                 rep_rw = (Reprw)serializer_rep.Deserialize(reader);
+                Logger.Info("Открытие файла report.xml.");
             }
             rep_rw.PostgresList.Clear();
 
@@ -63,105 +115,142 @@ namespace NetChecker
                 status_Res.Status = PostgresCheck.Connect(constr);
                 status_Res.Dat = DateTime.Now;
                 rep_rw.PostgresList.Add(status_Res);
+                Logger.Info("Проверка строки подключения.");
 
-            }
+                }
             XmlSerializer rep_serialazer = new XmlSerializer(typeof(Reprw));
             using (FileStream file = new FileStream("report.xml", FileMode.Create))
             using (TextWriter xwriter = new StreamWriter(file, new UTF8Encoding()))
             {
                 rep_serialazer.Serialize(xwriter, rep_rw);
                 xwriter.Close();
+                Logger.Info("Сохранение результатов проверки в report.xml.");
             }
             Console.WriteLine("\nПроверка строки подключения завершена. Результат проверки сохранен в файл отчета.");
+            Logger.Info("Проверка подключения к БД завершена успешно.");
+            }
+            catch(Exception) 
+            {
+                Logger.Error("Ошибка: не удалось инициализировать запуск проверки подключения к БД PostreSQL..");
+            }
+
 
 
         }
         static void EditConnStr()//Функция работает исправно (предыдущая строка очищается, после чего прописывается новая).
         {
-
-            XmlSerializer serializer = new XmlSerializer(typeof(xmlrw));
-            xmlrw xmlrw_val = null;
-            //Считываем имеющиеся в конфигурационном файле строки (List)
-            using (FileStream file = new FileStream("storage.xml", FileMode.Open))
-                //Создаем объект класса xmlrw.
-                xmlrw_val = (xmlrw)serializer.Deserialize(file);
-            //Очищаем старую строку подключения, перед добавлением новой строки.
-            xmlrw_val.PostgresList.Clear();
-
-            Console.WriteLine("Изменение строки подключения для проверки доступности БД:");
-            Console.WriteLine("Server:");
-            string server = Console.ReadLine();
-            Console.WriteLine("Port:");
-            string port = Console.ReadLine();
-            Console.WriteLine("Database:");
-            string database = Console.ReadLine();
-            Console.WriteLine("UserId:");
-            string userid = Console.ReadLine();
-            Console.WriteLine("Password:");
-            string password = Console.ReadLine();
-            Console.WriteLine("commandTimeout:");
-            string commandtimeout = Console.ReadLine();
-            string new_connectionstring = "Server=" + server + "; " + "Port=" + port + "; " + "Database=" + database + "; " + "UserId=" + userid + "; " +
-                "Password=" + password + "; " + "commandTimeout=" + commandtimeout + ";";
-            //Добавляем новую строку подключения в список объектов.
-            xmlrw_val.PostgresList.Add(new_connectionstring);
-            using (StringWriter textWriter = new StringWriter())
+            try
             {
-                serializer.Serialize(textWriter, xmlrw_val);
+                Logger.Info("Инициализация редактирования строки подключения к БД PostgreSQL.");
 
+                XmlSerializer serializer = new XmlSerializer(typeof(xmlrw));
+                xmlrw xmlrw_val = null;
+                //Считываем имеющиеся в конфигурационном файле строки (List)
+                using (FileStream file = new FileStream("storage.xml", FileMode.Open))
+                {
+                    //Создаем объект класса xmlrw.
+                    xmlrw_val = (xmlrw)serializer.Deserialize(file);
+                    //Очищаем старую строку подключения, перед добавлением новой строки.
+                    xmlrw_val.PostgresList.Clear();
+                    Logger.Info("Очистка данных строки подключения к БД в файле starage.xml");
+                }    
+                
+                Console.WriteLine("Изменение строки подключения для проверки доступности БД:");
+                Console.WriteLine("Server:");
+                string server = Console.ReadLine();
+                Console.WriteLine("Port:");
+                string port = Console.ReadLine();
+                Console.WriteLine("Database:");
+                string database = Console.ReadLine();
+                Console.WriteLine("UserId:");
+                string userid = Console.ReadLine();
+                Console.WriteLine("Password:");
+                string password = Console.ReadLine();
+                Console.WriteLine("commandTimeout:");
+                string commandtimeout = Console.ReadLine();
+                string new_connectionstring = "Server=" + server + "; " + "Port=" + port + "; " + "Database=" + database + "; " + "UserId=" + userid + "; " +
+                    "Password=" + password + "; " + "commandTimeout=" + commandtimeout + ";";
+                //Добавляем новую строку подключения в список объектов.
+                xmlrw_val.PostgresList.Add(new_connectionstring);
+                using (StringWriter textWriter = new StringWriter())
+                {
+                    serializer.Serialize(textWriter, xmlrw_val);
+
+                }
+                //Записываем новую строку подключения в файл XML.
+                using (FileStream file = new FileStream("storage.xml", FileMode.Create))
+                using (TextWriter xwriter = new StreamWriter(file, new UTF8Encoding()))
+                {
+                    serializer.Serialize(xwriter, xmlrw_val);
+                    xwriter.Close();
+                    Logger.Info("Сохранение изменений в файл storage.xml.");
+                }
+                Console.WriteLine("Строка подключения к серверу Postgres успешно изменена.");
+                Logger.Info("Изменение строки подключения к БД завершено успешно.");
             }
-            //Записываем новую строку подключения в файл XML.
-            using (FileStream file = new FileStream("storage.xml", FileMode.Create))
-            using (TextWriter xwriter = new StreamWriter(file, new UTF8Encoding()))
+            catch(Exception)
             {
-                serializer.Serialize(xwriter, xmlrw_val);
-                xwriter.Close();
+                Logger.Fatal("Ошибка: не удалось инициализировать запуск изменения строки подключения к БД");
             }
-            Console.WriteLine("Строка подключения к серверу Postgres успешно изменена.");
-
         }
         static void ChekToURL()//Проверка адресов интернет-страниц на доступность. Сохранение результата проверки в файл отчета.
         {
-            Console.WriteLine("\nПроверка списка URL:");
-            //Вычитываем список строк из файла конфигурации (xml).
-            XmlSerializer serializer = new XmlSerializer(typeof(xmlrw));
-            xmlrw xmlrw_val = null;
+            Logger.Info("Инициализация проверки списка адресов URL на доступность");
 
-            using (StreamReader reader = new StreamReader("storage.xml"))
+            try
             {
-                xmlrw_val = (xmlrw)serializer.Deserialize(reader);
-            }
-            XmlSerializer serializer_rep = new XmlSerializer(typeof(Reprw));
-            Reprw rep_rw = null;
-            using (StreamReader reader = new StreamReader("report.xml"))
-            {
-                rep_rw = (Reprw)serializer_rep.Deserialize(reader);
-            }
-            rep_rw.UrlList.Clear();
-            //Преобразуем объекты в список строк и производим проверку доступности сайтов.
-            foreach (var link in xmlrw_val.UrlList)
-            {
-                status_res status_Res = new status_res();
-                status_Res.ResName = link;
-                status_Res.Status = SiteCheck.Test(link);
-                status_Res.Dat = DateTime.Now;
-                rep_rw.UrlList.Add(status_Res);
-                if (status_Res.Status)
+                Console.WriteLine("\nПроверка списка URL:");
+                //Вычитываем список строк из файла конфигурации (xml).
+                XmlSerializer serializer = new XmlSerializer(typeof(xmlrw));
+                xmlrw xmlrw_val = null;
+
+                using (StreamReader reader = new StreamReader("storage.xml"))
                 {
-                    Console.WriteLine($"Подключение к URL {link}: успешно");
+                    xmlrw_val = (xmlrw)serializer.Deserialize(reader);
+                    Logger.Info("Чтение данных из файла storage.xml");
                 }
-                else
+                XmlSerializer serializer_rep = new XmlSerializer(typeof(Reprw));
+                Reprw rep_rw = null;
+                using (StreamReader reader = new StreamReader("report.xml"))
                 {
-                    Console.WriteLine($"Подключение к URL {link}: ошибка");
+                    rep_rw = (Reprw)serializer_rep.Deserialize(reader);
+                    Logger.Info("Чтение данных из файла report.xml");
+                }
+                rep_rw.UrlList.Clear();
+                Logger.Info("Очистка файла отчета report.xml для сохранения данных актуальной провекри");
+                //Преобразуем объекты в список строк и производим проверку доступности сайтов.
+                foreach (var link in xmlrw_val.UrlList)
+                {
+                    status_res status_Res = new status_res();
+                    status_Res.ResName = link;
+                    status_Res.Status = SiteCheck.Test(link);
+                    status_Res.Dat = DateTime.Now;
+                    rep_rw.UrlList.Add(status_Res);
+                    if (status_Res.Status)
+                    {
+                        Console.WriteLine($"Подключение к URL {link}: успешно");
+                        Logger.Info($"Ресурс с адресом {link} доступен");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Подключение к URL {link}: ошибка");
+                        Logger.Warn($"Ресурс с адресом {link} недоступен");
+                    }
+                }
+                XmlSerializer rep_serialazer = new XmlSerializer(typeof(Reprw));
+                using (FileStream file = new FileStream("report.xml", FileMode.Create))
+                using (TextWriter xwriter = new StreamWriter(file, new UTF8Encoding()))
+                {
+                    rep_serialazer.Serialize(xwriter, rep_rw);
+                    xwriter.Close();
+                    Logger.Info("Результаты проверки успешно сохранены в файл report.xml");
                 }
             }
-            XmlSerializer rep_serialazer = new XmlSerializer(typeof(Reprw));
-            using (FileStream file = new FileStream("report.xml", FileMode.Create))
-            using (TextWriter xwriter = new StreamWriter(file, new UTF8Encoding()))
+            catch(Exception)
             {
-                rep_serialazer.Serialize(xwriter, rep_rw);
-                xwriter.Close();
+                Logger.Fatal("Ошибка: не удалось инициализировать запуск проверки списка URL");
             }
+            
 
         }
         static void AddToList()//Добавление новых адресов сайтов в список провеки (функция работает исправно, реализована проверка правильности ввода через регулярное выражение - работает не совсем корректно. Не ыводит уведобления о сохранении в список. ).
@@ -182,7 +271,7 @@ namespace NetChecker
                 {
                     Console.WriteLine("Введите новый URL:\n");
                     string new_url = Console.ReadLine();
-                    if (isValidUrl(new_url)==true)
+                    if (isValidUrl(new_url) == true)
                     {
                         xmlrw_val.UrlList.Add(new_url);
                         using (StringWriter textWriter = new StringWriter())
@@ -203,11 +292,11 @@ namespace NetChecker
                     else
                     {
                         Console.WriteLine("\nТакой URL не существует. Введите правильный URL.\n");
-                        
+
                     }
-                    
+
                 }
-                
+
                 else
                     if (yn == "N" || yn == "n")
                 {
@@ -227,67 +316,69 @@ namespace NetChecker
         {
             Console.WriteLine("\nВведите адрес электронной почты для отправки отчета:\n");
             string new_mail = Console.ReadLine();
-            
-                
-                if (isValid(new_mail) == true)
+
+
+            if (isValid(new_mail) == true)
+            {
+                XmlSerializer serializer = new XmlSerializer(typeof(xmlrw));
+                xmlrw xmlrw_val = null;
+                //Считываем имеющиеся в конфигурационном файле строки (List)
+                using (FileStream file = new FileStream("storage.xml", FileMode.Open))
+
+                    xmlrw_val = (xmlrw)serializer.Deserialize(file);
+                xmlrw_val.Email.Clear();
+
+                xmlrw_val.Email.Add(new_mail);
+                using (StringWriter textWriter = new StringWriter())
                 {
-                    XmlSerializer serializer = new XmlSerializer(typeof(xmlrw));
-                    xmlrw xmlrw_val = null;
-                    //Считываем имеющиеся в конфигурационном файле строки (List)
-                    using (FileStream file = new FileStream("storage.xml", FileMode.Open))
+                    serializer.Serialize(textWriter, xmlrw_val);
 
-                        xmlrw_val = (xmlrw)serializer.Deserialize(file);
-                    xmlrw_val.Email.Clear();
-
-                    xmlrw_val.Email.Add(new_mail);
-                    using (StringWriter textWriter = new StringWriter())
-                    {
-                        serializer.Serialize(textWriter, xmlrw_val);
-
-                    }
-                    //Сохранение данных в файл xml с новыми строками.
-                    using (FileStream file = new FileStream("storage.xml", FileMode.Create))
-                    using (TextWriter xwriter = new StreamWriter(file, new UTF8Encoding()))
-                    {
-                        serializer.Serialize(xwriter, xmlrw_val);
-                        xwriter.Close();
-                    }
-                    Console.WriteLine("\nНовый электронный адрес получателя отчета сохранен.");
                 }
-                else
+                //Сохранение данных в файл xml с новыми строками.
+                using (FileStream file = new FileStream("storage.xml", FileMode.Create))
+                using (TextWriter xwriter = new StreamWriter(file, new UTF8Encoding()))
                 {
-                    Console.WriteLine("\nАдрес электронной почты введен с ошибкой.\n");
-                    Console.WriteLine("\nЕсли хотите попроьовать снова нажмите Y, если хотите вернуться в основное меню нажмите N.\n");
-                    var yn = Console.ReadLine();
-                    if (yn == "Y" || yn == "y")
+                    serializer.Serialize(xwriter, xmlrw_val);
+                    xwriter.Close();
+                }
+                Console.WriteLine("\nНовый электронный адрес получателя отчета сохранен.");
+            }
+            else
+            {
+                Console.WriteLine("\nАдрес электронной почты введен с ошибкой.\n");
+                Console.WriteLine("\nЕсли хотите попроьовать снова нажмите Y, если хотите вернуться в основное меню нажмите N.\n");
+                var yn = Console.ReadLine();
+                if (yn == "Y" || yn == "y")
                 {
                     EditMail();
                 }
-                    if (yn == "N" || yn == "n")
+                if (yn == "N" || yn == "n")
                 {
                     Console.WriteLine("ВНИМАНИЕ!!! Адрес электронной почты не изменен!");
                 }
-                    else
+                else
                 {
                     Console.WriteLine("Вы ввели неверное значение.");
                     Console.WriteLine("\nЕсли хотите попроьовать снова нажмите Y, если хотите вернуться в основное меню нажмите N.\n");
                 }
 
 
-                }
-            
+            }
+
 
 
         }
         static void Report()//Отправка отчета работает корректно.
         {
-            
+            Logger.Info("Инициализация отправки отчета на электронную почту.");
+
             XmlSerializer serializer = new XmlSerializer(typeof(xmlrw));
             xmlrw xmlrw_val = null;
             using (StreamReader reader = new StreamReader("storage.xml"))
             {
                 xmlrw_val = (xmlrw)serializer.Deserialize(reader);
                 reader.Close();
+                Logger.Info("Чтение актуального адреса эл.посты для отправки отчета из файла storage.xml.");
             }
             foreach (string to in xmlrw_val.Email)
             {
@@ -314,11 +405,12 @@ namespace NetChecker
                     smtp.Send(mm);
                     Console.WriteLine($"\nОтчет отправлен на электронную почту {to}.");
                     System.Threading.Thread.Sleep(3000);
+                    Logger.Info("Отчет успешно отправлен на указанный адрес электронной почты.");
 
                 }
 
             }
-            
+
         }
         static void Exit()//Завершение работы приложеня. 1. Нужно сделать красиво оформленный логотип на прощальном экране (сделать по центру).
         {
@@ -330,6 +422,7 @@ namespace NetChecker
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.Write(centerText);
             Environment.Exit(3);
+            Logger.Info("Завершение работы приложения.");
         }
 
         public static bool isValid(string email)//Проверка правильности вводе E-MAIL.
@@ -366,10 +459,10 @@ namespace NetChecker
             {
                 Console.WriteLine($"\nСтрока подключения Postgres: " + pg.ResName + "\nСтатус: " + pg.Status + "\nВремя проверки: " + pg.Dat);
             }
-            
 
+
+        }
+        
         }
 
     }
-
-}
