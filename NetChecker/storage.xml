@@ -8,9 +8,9 @@
 	  <string>https://www.cyberforum.ru</string>
 	  <string>https://www.cyberf3873orum.ru</string>
   </UrlList>
-	<PostgresList>
+	<PostgreList>
 		<string>Server=localhost; Port=5432; Database=Test_base_001; UserId=postgres; Password=1234; commandTimeout=120;</string>
-	</PostgresList>
+	</PostgreList>
 	<Email>
 		<string>technoservice@nxt.ru</string>
 	</Email>
