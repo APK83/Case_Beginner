@@ -360,6 +360,7 @@ namespace NetChecker
                 {
                     rep_serialazer.Serialize(xwriter, rep_rw);
                     xwriter.Close();
+                    Console.WriteLine("\nПроверка списка URL завершена. Результат проверки сохранен в файл отчета.");
                     Logger.Info("Результаты проверки успешно сохранены в файл report.xml");
                 }
             }
@@ -458,7 +459,7 @@ namespace NetChecker
                 {
                     XmlSerializer serializer = new XmlSerializer(typeof(xmlrw));
                     xmlrw xmlrw_val = null;
-                    //Считываем имеющиеся в конфигурационном файле строки (List)
+                    //Считываем имеющиеся в конфигурационном файле строки.
                     using (FileStream file = new FileStream("storage.xml", FileMode.Open))
                     {
                         xmlrw_val = (xmlrw)serializer.Deserialize(file);
