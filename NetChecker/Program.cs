@@ -166,7 +166,6 @@ namespace NetChecker
 
             try
             {
-
                 if (args.Length == 0)
                 {
                     string[] items = { "\nПроверка доступности БД PostgreSQL", "\nИзменение строки подключения к БД", "\nПроверка на доступность списка URL", "\nДобваление нового URL в список проверки", "\nИзменение адреса e-mail для отправки отчета", "\nОтправка отчета", "\nРезультат последней проверки", "\nВыход" };
@@ -191,17 +190,16 @@ namespace NetChecker
                         reportDisplay();
                         Logger.Info("Запуск программы с параметром");
                     }
-                    catch (Exception)
+                    catch (Exception exception)
                     {
-                        Logger.Error("Ошибка: запуск приложения с параметром невозможен, проверьте правильность вводимых команд");
+                        Logger.Error("Ошибка: запуск приложения с параметром невозможен, проверьте правильность вводимых команд", exception);
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception exception)
             {
-                Logger.Fatal("Критическая ошибка: не удалось инициализировать запуск стартового меню.");
+                Logger.Fatal("Критическая ошибка: не удалось инициализировать запуск стартового меню.", exception);
             }
-
         }
         static void CheckToDB()
         {
@@ -246,13 +244,10 @@ namespace NetChecker
                 Console.WriteLine("\nПроверка строки подключения завершена. Результат проверки сохранен в файл отчета.");
                 Logger.Info("Проверка подключения к БД завершена");
             }
-            catch (Exception)
+            catch (Exception exception)
             {
-                Logger.Error("Ошибка: не удалось инициализировать запуск проверки подключения к БД PostreSQL");
+                Logger.Error("Ошибка: не удалось инициализировать запуск проверки подключения к БД PostreSQL", exception);
             }
-
-
-
         }
         static void EditConnStr()//Функция работает исправно (предыдущая строка очищается, после чего прописывается новая).
         {
@@ -305,9 +300,9 @@ namespace NetChecker
                 Console.WriteLine("Строка подключения к серверу Postgres успешно изменена.");
                 Logger.Info("Изменение строки подключения к БД завершено успешно");
             }
-            catch (Exception)
+            catch (Exception exception)
             {
-                Logger.Fatal("Ошибка: не удалось инициализировать запуск изменения строки подключения к БД");
+                Logger.Fatal("Ошибка: не удалось инициализировать запуск изменения строки подключения к БД", exception);
             }
         }
         static void ChekToURL()//Проверка адресов интернет-страниц на доступность. Сохранение результата проверки в файл отчета.
@@ -364,12 +359,10 @@ namespace NetChecker
                     Logger.Info("Результаты проверки успешно сохранены в файл report.xml");
                 }
             }
-            catch (Exception)
+            catch (Exception exception)
             {
-                Logger.Fatal("Ошибка: не удалось инициализировать запуск проверки списка URL");
+                Logger.Fatal("Ошибка: не удалось инициализировать запуск проверки списка URL", exception);
             }
-
-
         }
         static void AddToList()//Добавление новых адресов сайтов в список провеки (функция работает исправно, реализована проверка правильности ввода через регулярное выражение.).
         {
@@ -439,12 +432,10 @@ namespace NetChecker
 
                 }
             }
-            catch (Exception)
+            catch (Exception exception)
             {
-                Logger.Fatal("Ошибка: не удалось инициализировать запуск редактирования списка URL");
+                Logger.Fatal("Ошибка: не удалось инициализировать запуск редактирования списка URL", exception);
             }
-
-
         }
         static void EditMail()//Добавление адреса электронной почты в файл конфигурации. Реализована проверка правильности ввода через регулярное выражение.
         {
@@ -501,13 +492,12 @@ namespace NetChecker
                     {
                         Console.WriteLine("ВНИМАНИЕ!!! Адрес электронной почты не изменен!");
                         Logger.Warn("Добавление нового адреса электронной почты отменено пользователем");
-                    }
-                    
+                    }               
                 }
             }
-            catch (Exception)
+            catch (Exception exception)
             {
-                Logger.Fatal("Ошибка: не удалось инициализировать запуск редактирования электронной почты");
+                Logger.Fatal("Ошибка: не удалось инициализировать запуск редактирования электронной почты", exception);
             }
         }
         static void Report()//Отправка отчета работает корректно.
@@ -541,9 +531,9 @@ namespace NetChecker
                             mm.Attachments.Add(attachment);
                             Logger.Info("Файл отчета report.xml прикреплен к сообщению");
                         }
-                        catch (Exception)
+                        catch (Exception exception)
                         {
-                            Logger.Error("Ошибка: файл report.xml не найден");
+                            Logger.Error("Ошибка: файл report.xml не найден", exception);
                         }
                         SmtpClient smtp = new SmtpClient();
                         smtp.Host = ConfigurationManager.AppSettings["Host"];
@@ -564,17 +554,13 @@ namespace NetChecker
                         {
                             Logger.Error("Ошибка: отчет не отправлен, проверьте правильность настроек электронной почты");
                         }
-
                     }
-
                 }
             }
-            catch (Exception)
+            catch (Exception exception)
             {
-                Logger.Fatal("Ошибка: не удалось инициализировать отправку отчета на электронную почту");
+                Logger.Fatal("Ошибка: не удалось инициализировать отправку отчета на электронную почту", exception);
             }
-
-
         }
         static void Exit()//Завершение работы приложеня.
         {
@@ -650,7 +636,6 @@ namespace NetChecker
                 reader.Close();
             }
 
-            //Преобразуем объекты в список строк и производим проверку доступности сайтов.
             Console.WriteLine("\nРЕЗУЛЬТАТЫ ПРОВЕРКИ URL:");
             foreach (var link in rep_rw.UrlList)
             {
@@ -659,13 +644,8 @@ namespace NetChecker
             Console.WriteLine("\nРЕЗУЛЬТАТЫ ПРОВЕРКИ PostgreSQL:");
             foreach (var pg in rep_rw.PostgresList)
             {
-                Console.WriteLine($"\nСтрока подключения Postgres: " + pg.ResName + "\nСтатус: " + pg.Status + "\nВремя проверки: " + pg.Dat);
+                Console.WriteLine($"\nСтрока подключения к БД: " + pg.ResName + "\nСтатус: " + pg.Status + "\nВремя проверки: " + pg.Dat);
             }
-
-
         }
-
     }
-
-
 }
